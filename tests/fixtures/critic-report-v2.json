@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 2,
+  "contractSha256": "__PINNED_CONTRACT_SHA256__",
+  "checkpointSha256": "__REVIEWED_CHECKPOINT_SHA256__",
+  "critic": {
+    "id": "critic-placeholder",
+    "contextId": "context-placeholder",
+    "role": "independent-visual-critic",
+    "authoredCurrentPass": false
+  },
+  "decision": "refine-scene",
+  "viewEvidence": [],
+  "evidenceSufficiency": {
+    "sufficient": true,
+    "missingOrUnjudgeable": [],
+    "rationale": "All deterministic evidence is legible."
+  },
+  "scorecard": {
+    "overall": 0.8,
+    "aggregation": "hard-gates-then-weighted-judgment",
+    "priorityWeights": {
+      "identity": 0.6,
+      "structure": 0.4
+    },
+    "overallRationale": "Identity and structural correctness dominate this form pass.",
+    "layers": {
+      "camera-framing": 0.8,
+      "silhouette-proportion": 0.8,
+      "depth-cross-section": 0.8,
+      "structural-attachment-contact": 0.8,
+      "topology-shading": 0.8,
+      "material-physicality-tiling": 0.8,
+      "lighting-color": 0.8,
+      "scale-cues": 0.8,
+      "environment-grounding": 0.8,
+      "narrative-detail-density": 0.8,
+      "presentation": 0.8,
+      "delivery-integrity": 0.8
+    }
+  },
+  "deltaFromPrior": {
+    "overall": null,
+    "criticalFeatures": {},
+    "summary": "First independent round."
+  },
+  "universalChecklist": [],
+  "subjectChecklist": [],
+  "hardGates": [],
+  "criticalFeatures": [],
+  "highestImpactFinding": {
+    "id": "root-placeholder",
+    "rootCause": "Largest remaining source-specific form mismatch.",
+    "affectedContractIds": [
+      "feature-01"
+    ],
+    "correctionBrief": "Correct only the named form mismatch."
+  },
+  "trajectory": {
+    "status": "first-round",
+    "rationale": "No prior critic round exists."
+  }
+}

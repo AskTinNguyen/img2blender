@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "skill": "img2blender",
+  "projectName": "legacy-fixture",
+  "projectDir": "__PROJECT_DIR__",
+  "specPath": "__SPEC_PATH__",
+  "target": "hero-render",
+  "complexity": "simple",
+  "status": "active",
+  "currentPass": "intake",
+  "passes": [
+    {
+      "id": "intake",
+      "label": "Reference analysis and quality contract",
+      "status": "unlocked",
+      "reviewCount": 0,
+      "consecutiveRefinements": 0,
+      "reviewHistory": []
+    }
+  ]
+}

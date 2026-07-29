@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "references": [
+    {
+      "path": "__REFERENCE_PATH__",
+      "sha256": "",
+      "role": "primary"
+    }
+  ],
+  "referenceAnalysis": {
+    "suitability": "pass",
+    "classification": {
+      "primaryType": "fixture",
+      "domain": "object",
+      "confidence": 0.8
+    },
+    "observations": [
+      "one",
+      "two",
+      "three",
+      "four"
+    ],
+    "inferences": [],
+    "cameraEvidence": {},
+    "scaleEvidence": {},
+    "contradictions": []
+  },
+  "componentPlan": [],
+  "materialPlan": [],
+  "detailInventory": {
+    "minimum": 1,
+    "items": [
+      {
+        "id": "legacy-feature",
+        "kind": "profile",
+        "region": "front",
+        "affects": "silhouette",
+        "evidenceRef": "ref-01",
+        "mapsTo": "legacy mesh",
+        "reviewView": "reference-match",
+        "confidence": 0.7
+      }
+    ]
+  },
+  "unknowns": [],
+  "qualityContract": {
+    "definitionOfDone": [
+      "fixture"
+    ],
+    "criticalFeatures": [],
+    "requiredViews": [
+      "reference",
+      "orbit-left",
+      "orbit-right"
+    ],
+    "failureModes": [
+      "missing"
+    ],
+    "deliverables": [
+      "blend"
+    ],
+    "globalThreshold": 0.82,
+    "criticalThreshold": 0.85
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Image to Blender"
+  short_description: "Evidence-gated Blender reconstruction"
+  default_prompt: "Use $img2blender to reconstruct this reference as a multi-view Blender asset with independent visual critique."
