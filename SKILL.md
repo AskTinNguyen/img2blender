@@ -109,6 +109,11 @@ Create one `referenceAnalysis.observedFeatures` row for each particular, then ex
 - deterministic review cameras, including `critical-closeup:<feature-id>` when critical;
 - confidence and admitted reference IDs.
 
+Keep feature IDs case-sensitive in the contract, but treat all evidence roles as case-insensitive
+and store them canonically in lowercase. For example, feature `D01` uses the canonical evidence
+role `critical-closeup:d01`; CLI, camera tags, manifests, and critic citations may supply either
+case and are normalized before comparison.
+
 Keep `qualityContract.criticalFeatures` identical to the feature mappings marked critical. Define
 thresholds, back relevance, complete view roles, failure modes, deliverables, and concrete
 definition-of-done statements. Request more evidence when identity-bearing geometry, material,

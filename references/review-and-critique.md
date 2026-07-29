@@ -49,6 +49,10 @@ between rounds. Supply only evidence needed to judge the current pass:
 - `critical-closeup:<feature-id>` for every critical feature reviewed in the pass;
 - `previous-iteration`: fixed-camera previous/current comparison.
 
+Treat evidence roles as case-insensitive tokens and store/compare them in lowercase. A critic may
+cite `critical-closeup:D01`, but the admitted role and manifests record
+`critical-closeup:d01`; the feature review ID itself remains the case-sensitive `D01`.
+
 For architecture/environment also supply `ortho-front`, `ortho-left`, `ortho-right`, `ortho-back`,
 and `ortho-top`. These prove layout, visible elevations, roofs, supports, access, terrain contact,
 and back-side construction. Use additional closeups for circulation, façades, windows/interiors,

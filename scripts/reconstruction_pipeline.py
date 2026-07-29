@@ -299,6 +299,16 @@ def evidence_record(path_text: str, role: str | None = None, kind: str | None = 
     return record
 
 
+def canonical_role(value: str) -> str:
+    """Return the single case-insensitive representation used for evidence roles."""
+    return value.strip().lower()
+
+
+def critical_closeup_role(feature_id: Any) -> str:
+    """Map a case-sensitive feature ID to its canonical evidence-role suffix."""
+    return f"critical-closeup:{canonical_role(str(feature_id))}"
+
+
 def parse_role_evidence(values: list[str], kind: str) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     seen: set[str] = set()
@@ -308,7 +318,7 @@ def parse_role_evidence(values: list[str], kind: str) -> list[dict[str, Any]]:
                 f"{kind} evidence must use ROLE=/absolute/path syntax; got {value!r}"
             )
         role, path_text = value.split("=", 1)
-        role = role.strip().lower()
+        role = canonical_role(role)
         if not role or not path_text.strip():
             raise ValueError(f"Invalid {kind} evidence mapping: {value!r}")
         if role in seen:
@@ -383,7 +393,7 @@ def required_view_roles(spec: dict[str, Any], pass_id: str) -> dict[str, str]:
     routes = set(spec.get("subjectRoutes", []))
     contract = spec.get("qualityContract", {})
     for role in contract.get("requiredViews", []):
-        normalized = str(role).strip().lower()
+        normalized = canonical_role(str(role))
         if normalized:
             roles[normalized] = (
                 "comparison"
@@ -395,7 +405,7 @@ def required_view_roles(spec: dict[str, Any], pass_id: str) -> dict[str, str]:
     elif contract.get("backReviewRequired") is True:
         roles["back"] = "render"
     for feature in critical_for_pass(contract, pass_id):
-        roles[f"critical-closeup:{feature['id']}"] = "render"
+        roles[critical_closeup_role(feature["id"])] = "render"
     return roles
 
 
@@ -654,11 +664,13 @@ def validate_spec(state: dict[str, Any]) -> tuple[list[str], list[str]]:
         review_cameras = require_nonempty_list(
             mapping.get("reviewCameras"), f"{prefix}.reviewCameras", errors
         )
-        if mapping.get("critical") is True and f"critical-closeup:{feature_id}" not in {
-            str(camera) for camera in review_cameras
+        expected_critical_role = critical_closeup_role(feature_id)
+        if mapping.get("critical") is True and expected_critical_role not in {
+            canonical_role(str(camera)) for camera in review_cameras
         }:
             errors.append(
-                f"{prefix}.reviewCameras must include critical-closeup:{feature_id} for a critical feature"
+                f"{prefix}.reviewCameras must include {expected_critical_role} "
+                "for a critical feature"
             )
         evidence_refs = require_nonempty_list(
             mapping.get("evidenceRefs"), f"{prefix}.evidenceRefs", errors
@@ -741,6 +753,7 @@ def validate_spec(state: dict[str, Any]) -> tuple[list[str], list[str]]:
         contract.get("criticalFeatures"), "qualityContract.criticalFeatures", errors
     )
     contract_feature_ids: set[str] = set()
+    contract_critical_roles: set[str] = set()
     for index, feature in enumerate(critical_features):
         prefix = f"qualityContract.criticalFeatures[{index}]"
         if not isinstance(feature, dict):
@@ -748,6 +761,13 @@ def validate_spec(state: dict[str, Any]) -> tuple[list[str], list[str]]:
             continue
         feature_id = require_string(feature.get("id"), f"{prefix}.id", errors)
         contract_feature_ids.add(feature_id)
+        critical_role = critical_closeup_role(feature_id)
+        if critical_role in contract_critical_roles:
+            errors.append(
+                f"{prefix}.id collides case-insensitively with another critical "
+                f"evidence role: {critical_role}"
+            )
+        contract_critical_roles.add(critical_role)
         if feature_id not in observed_ids:
             errors.append(f"{prefix}.id must identify an observed feature")
         require_string(feature.get("description"), f"{prefix}.description", errors)
@@ -775,7 +795,9 @@ def validate_spec(state: dict[str, Any]) -> tuple[list[str], list[str]]:
     required_views = require_nonempty_list(
         contract.get("requiredViews"), "qualityContract.requiredViews", errors
     )
-    required_view_set = {str(item) for item in required_views}
+    required_view_set = {
+        canonical_role(str(item)) for item in required_views
+    }
     missing_baseline = set(BASE_VIEW_ROLES) - required_view_set
     if missing_baseline:
         errors.append(
@@ -1150,7 +1172,9 @@ def validate_evidence(
     for index, view in enumerate(views):
         if not isinstance(view, dict):
             raise ValueError(f"critic report viewEvidence[{index}] must be an object")
-        role = require_report_string(view.get("role"), f"viewEvidence[{index}].role").lower()
+        role = canonical_role(
+            require_report_string(view.get("role"), f"viewEvidence[{index}].role")
+        )
         kind = require_report_string(view.get("kind"), f"viewEvidence[{index}].kind").lower()
         path = str(Path(require_report_string(view.get("path"), f"viewEvidence[{index}].path")).expanduser().resolve())
         if (role, kind) in seen:
@@ -1165,7 +1189,10 @@ def validate_evidence(
         if not view.get("judgeable") and not str(view.get("notes", "")).strip():
             raise ValueError(f"viewEvidence[{index}] needs notes when not judgeable")
     view_by_role_kind = {
-        (str(view.get("role", "")).strip().lower(), str(view.get("kind", "")).strip().lower()): view
+        (
+            canonical_role(str(view.get("role", ""))),
+            str(view.get("kind", "")).strip().lower(),
+        ): view
         for view in views
         if isinstance(view, dict)
     }
@@ -1216,7 +1243,11 @@ def validate_review_bundle(
     for index, item in enumerate(manifest_renders):
         if not isinstance(item, dict):
             raise ValueError(f"Render manifest renders[{index}] must be an object")
-        role = require_report_string(item.get("role"), f"render manifest renders[{index}].role").lower()
+        role = canonical_role(
+            require_report_string(
+                item.get("role"), f"render manifest renders[{index}].role"
+            )
+        )
         if role in manifest_by_role:
             raise ValueError(f"Render manifest contains duplicate role: {role}")
         path = Path(
@@ -1284,11 +1315,22 @@ def validate_review_bundle(
     comparison_items = comparison_manifest.get("evidence")
     if not isinstance(comparison_items, list):
         raise ValueError("Comparison manifest evidence must be a list")
-    comparison_by_role = {
-        item.get("role"): item
-        for item in comparison_items
-        if isinstance(item, dict) and item.get("role")
-    }
+    comparison_by_role: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(comparison_items):
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"Comparison manifest evidence[{index}] must be an object"
+            )
+        role = canonical_role(
+            require_report_string(
+                item.get("role"), f"comparison manifest evidence[{index}].role"
+            )
+        )
+        if role in comparison_by_role:
+            raise ValueError(
+                f"Comparison manifest contains duplicate canonical role: {role}"
+            )
+        comparison_by_role[role] = item
     for record in comparison_records:
         item = comparison_by_role.get(record["role"])
         if not isinstance(item, dict):
@@ -1425,11 +1467,14 @@ def validate_checklist(
             if status not in {"pass", "fail", "not-applicable"}:
                 raise ValueError(f"{field}[{index}].status must be pass, fail, or not-applicable")
             require_report_string(item.get("notes"), f"{field}[{index}].notes")
-            evidence_roles = item.get("evidenceRoles")
-            if not isinstance(evidence_roles, list):
+            evidence_roles_raw = item.get("evidenceRoles")
+            if not isinstance(evidence_roles_raw, list):
                 raise ValueError(f"{field}[{index}].evidenceRoles must be a list")
-            if status != "not-applicable" and not evidence_roles:
+            if status != "not-applicable" and not evidence_roles_raw:
                 raise ValueError(f"{field}[{index}] needs evidenceRoles unless not-applicable")
+            evidence_roles = {
+                canonical_role(str(role)) for role in evidence_roles_raw
+            }
             unknown_evidence = sorted(set(evidence_roles) - available_roles)
             if unknown_evidence:
                 raise ValueError(
@@ -1473,9 +1518,13 @@ def validate_hard_gates(
         if gate.get("status") not in {"pass", "fail", "not-applicable"}:
             raise ValueError(f"hardGates[{index}].status must be pass, fail, or not-applicable")
         require_report_string(gate.get("finding"), f"hardGates[{index}].finding")
-        if not isinstance(gate.get("evidenceRoles"), list):
+        evidence_roles_raw = gate.get("evidenceRoles")
+        if not isinstance(evidence_roles_raw, list):
             raise ValueError(f"hardGates[{index}].evidenceRoles must be a list")
-        unknown_evidence = sorted(set(gate["evidenceRoles"]) - available_roles)
+        evidence_roles = {
+            canonical_role(str(role)) for role in evidence_roles_raw
+        }
+        unknown_evidence = sorted(evidence_roles - available_roles)
         if unknown_evidence:
             raise ValueError(
                 f"hardGates[{index}].evidenceRoles cites unadmitted roles: "
@@ -1524,10 +1573,13 @@ def validate_critical_features(
         ):
             if not isinstance(review.get(bool_field), bool):
                 raise ValueError(f"criticalFeatures[{feature_id}].{bool_field} must be boolean")
-        evidence_roles = review.get("evidenceRoles")
-        if not isinstance(evidence_roles, list) or not evidence_roles:
+        evidence_roles_raw = review.get("evidenceRoles")
+        if not isinstance(evidence_roles_raw, list) or not evidence_roles_raw:
             raise ValueError(f"criticalFeatures[{feature_id}].evidenceRoles must be non-empty")
-        unknown_evidence = sorted(set(evidence_roles) - available_roles)
+        evidence_roles = {
+            canonical_role(str(role)) for role in evidence_roles_raw
+        }
+        unknown_evidence = sorted(evidence_roles - available_roles)
         if unknown_evidence:
             raise ValueError(
                 f"criticalFeatures[{feature_id}].evidenceRoles cites unadmitted roles: "
@@ -1675,7 +1727,9 @@ def validate_critic_report(
     required_roles = required_view_roles(spec, current["id"])
     validate_evidence(report, renders, comparisons, required_roles, action)
     available_roles = {
-        item["role"] for item in renders + comparisons if isinstance(item.get("role"), str)
+        canonical_role(item["role"])
+        for item in renders + comparisons
+        if isinstance(item.get("role"), str)
     }
     validate_checklist(report, spec.get("subjectRoutes", []), action, available_roles)
     validate_hard_gates(report, action, available_roles)
@@ -1784,7 +1838,9 @@ def validate_audit(
     if not isinstance(cameras, list):
         raise ValueError(f"Audit cameras must be a list: {path}")
     camera_roles = {
-        item.get("role") for item in cameras if isinstance(item, dict) and item.get("role")
+        canonical_role(str(item.get("role")))
+        for item in cameras
+        if isinstance(item, dict) and item.get("role")
     }
     missing_roles = sorted(
         role

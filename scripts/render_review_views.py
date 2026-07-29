@@ -85,9 +85,13 @@ def safe_filename(value: str) -> str:
     return normalized.strip("._") or "camera"
 
 
+def canonical_role(value: str) -> str:
+    return value.strip().lower()
+
+
 def role_for(camera: bpy.types.Object) -> str | None:
     role = camera.get("img2blender_role")
-    return str(role).strip().lower() if role else None
+    return canonical_role(str(role)) if role else None
 
 
 def role_state(scene: bpy.types.Scene, camera: bpy.types.Object) -> dict[str, Any]:
@@ -197,7 +201,8 @@ def main() -> int:
     )
     if duplicate_roles:
         raise ValueError(f"Selected cameras have duplicate review roles: {duplicate_roles}")
-    missing_roles = sorted(set(args.required_role) - {role for role in camera_roles if role})
+    required_roles = {canonical_role(role) for role in args.required_role}
+    missing_roles = sorted(required_roles - {role for role in camera_roles if role})
     if missing_roles:
         raise ValueError(f"Selected cameras are missing required roles: {missing_roles}")
     resolved_engine = resolve_engine(scene, args.engine)

@@ -365,7 +365,7 @@ class PipelineTestCase(unittest.TestCase):
         write_json(report_path, report)
 
         render_mappings = {
-            render_args[index + 1].split("=", 1)[0]: Path(
+            pipeline.canonical_role(render_args[index + 1].split("=", 1)[0]): Path(
                 render_args[index + 1].split("=", 1)[1]
             ).resolve()
             for index in range(0, len(render_args), 2)
@@ -415,7 +415,9 @@ class PipelineTestCase(unittest.TestCase):
         write_json(render_manifest_path, render_manifest)
 
         comparison_mappings = {
-            comparison_args[index + 1].split("=", 1)[0]: Path(
+            pipeline.canonical_role(
+                comparison_args[index + 1].split("=", 1)[0]
+            ): Path(
                 comparison_args[index + 1].split("=", 1)[1]
             ).resolve()
             for index in range(0, len(comparison_args), 2)
@@ -608,6 +610,62 @@ class PipelineEnforcementTests(PipelineTestCase):
             state_path, report, render_args, comparison_args, expected=2
         )
         self.assertIn("Missing required render evidence role: underside", result.stderr)
+
+    def test_uppercase_critical_feature_id_is_canonicalized_through_cli_review(self) -> None:
+        state_path, spec_path = self.initialize("simple")
+        spec = json.loads(spec_path.read_text(encoding="utf-8"))
+        spec["referenceAnalysis"]["observedFeatures"][0]["id"] = "D01"
+        spec["featureContract"][0]["featureId"] = "D01"
+        spec["featureContract"][0]["reviewCameras"] = [
+            "reference-match",
+            "critical-closeup:D01",
+        ]
+        spec["qualityContract"]["criticalFeatures"][0]["id"] = "D01"
+        spec["qualityContract"]["requiredViews"] = [
+            "critical-closeup:D01"
+            if role == "critical-closeup:feature-01"
+            else role
+            for role in spec["qualityContract"]["requiredViews"]
+        ]
+        write_json(spec_path, spec)
+        self.run_cli("validate", state_path)
+        self.admit_intake(state_path, spec_path)
+
+        render_args, comparison_args, views = self.evidence()
+        for index in range(0, len(render_args), 2):
+            role, path = render_args[index + 1].split("=", 1)
+            if role == "critical-closeup:feature-01":
+                render_args[index + 1] = f"critical-closeup:D01={path}"
+        for view in views:
+            if view["role"] == "critical-closeup:feature-01":
+                view["role"] = "critical-closeup:D01"
+
+        report = self.critic_report(
+            "critic-uppercase-id",
+            "context-uppercase-id",
+            "continue",
+            0.95,
+            None,
+            "none",
+            views,
+        )
+        report["criticalFeatures"][0]["id"] = "D01"
+        report["criticalFeatures"][0]["evidenceRoles"] = [
+            "critical-closeup:D01",
+            "orbit-left",
+            "orbit-right",
+        ]
+        self.record_round(
+            state_path,
+            report,
+            render_args,
+            comparison_args,
+        )
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        self.assertEqual(state["currentPass"], "blockout")
+        round_record = state["passes"][1]["criticRounds"][0]
+        admitted_roles = {item["role"] for item in round_record["renders"]}
+        self.assertIn("critical-closeup:d01", admitted_roles)
 
     def test_approved_contract_mutation_blocks_visual_pass_opening(self) -> None:
         state_path, spec_path = self.initialize("simple")
@@ -906,6 +964,8 @@ class BlenderIntegrationTests(unittest.TestCase):
                     "orbit-left",
                     "--required-role",
                     "orbit-right",
+                    "--required-role",
+                    "critical-closeup:D01",
                 ],
                 text=True,
                 capture_output=True,
@@ -916,6 +976,41 @@ class BlenderIntegrationTests(unittest.TestCase):
             codes = {item["code"] for item in payload["issues"]}
             self.assertIn("audit-ignore-forbidden-in-scope", codes)
             self.assertNotIn("missing-reference-camera", codes)
+            camera_roles = {item["role"] for item in payload["cameras"]}
+            self.assertIn("critical-closeup:d01", camera_roles)
+
+            render_dir = root / "renders"
+            rendered = subprocess.run(
+                [
+                    blender,
+                    "--background",
+                    str(blend),
+                    "--python",
+                    str(SKILL_ROOT / "scripts" / "render_review_views.py"),
+                    "--",
+                    "--out-dir",
+                    str(render_dir),
+                    "--camera",
+                    "CAM_Critical",
+                    "--required-role",
+                    "critical-closeup:D01",
+                    "--resolution-x",
+                    "32",
+                    "--resolution-y",
+                    "32",
+                ],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(rendered.returncode, 0, rendered.stdout + rendered.stderr)
+            manifest = json.loads(
+                (render_dir / "render-manifest.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                manifest["renders"][0]["role"],
+                "critical-closeup:d01",
+            )
 
 
 if __name__ == "__main__":

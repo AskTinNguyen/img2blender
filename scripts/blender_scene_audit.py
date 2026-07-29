@@ -441,7 +441,7 @@ def mesh_record(obj: bpy.types.Object) -> dict[str, Any]:
 def camera_role(camera: bpy.types.Object) -> str | None:
     explicit = camera.get("img2blender_role")
     if explicit:
-        return str(explicit).lower()
+        return str(explicit).strip().lower()
     name = camera.name.upper()
     if "REFERENCE" in name:
         return "reference"
@@ -558,7 +558,9 @@ def run_audit(args: argparse.Namespace) -> dict[str, Any]:
             "insufficient-orbit-cameras",
             "At least two meaningful orbit review cameras are required.",
         )
-    for required_role in sorted(set(args.required_role)):
+    for required_role in sorted(
+        {str(role).strip().lower() for role in args.required_role}
+    ):
         if required_role not in roles:
             add_issue(
                 "error",

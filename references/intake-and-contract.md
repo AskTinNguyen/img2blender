@@ -198,6 +198,11 @@ same ID in `qualityContract.criticalFeatures`. The controller rejects missing, e
 mappings. Generic resemblance, a broad component list, or prose that never maps to the scene cannot
 pass intake.
 
+Feature IDs remain case-sensitive contract identifiers. Evidence roles are case-insensitive and
+canonicalized to lowercase at every boundary. Thus feature ID `D01` remains `D01` in
+`observedFeatures`, `featureContract`, and `criticalFeatures`, while its stored camera/manifest role
+is `critical-closeup:d01`.
+
 Example:
 
 ```json

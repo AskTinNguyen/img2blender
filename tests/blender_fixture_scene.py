@@ -35,6 +35,7 @@ def main() -> None:
         ("CAM_Reference", "reference-match", (0.0, -6.0, 1.5)),
         ("CAM_OrbitLeft", "orbit-left", (-4.0, -4.0, 2.0)),
         ("CAM_OrbitRight", "orbit-right", (4.0, -4.0, 2.0)),
+        ("CAM_Critical", "critical-closeup:D01", (0.0, -3.0, 1.0)),
     ):
         camera_data = bpy.data.cameras.new(name)
         camera = bpy.data.objects.new(name, camera_data)
