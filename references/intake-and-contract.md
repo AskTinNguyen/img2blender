@@ -13,6 +13,10 @@ Read this file before opening Blender or creating geometry.
 7. Feature coverage and detail inventory
 8. Uncertainty and contradictions
 
+For redesign, explicit equal-size constraints, and component-only tasks, apply the optional
+[constrained-refinement contract](constrained-refinement.md) alongside this intake. Record task
+mode, user authorization, reference authority and intended validation scope before building.
+
 ## 1. Reference admission
 
 For every source image record:
@@ -99,7 +103,9 @@ For each visible material region record:
 - local wear, dirt, stains, oxidation, fingerprints, scratches, fading, edge polish, and cavities;
 - which properties are observed and which are inferred from common material behavior.
 
-Highlights and shadows are lighting evidence, not automatically base color.
+Highlights and shadows are lighting evidence, not automatically base color. Before changing a
+shader to fix a pale or metallic appearance, compare neutral and grazing lighting; a broad bright
+reflection or background seen through glass may be the cause.
 
 ### Identity-defining features
 

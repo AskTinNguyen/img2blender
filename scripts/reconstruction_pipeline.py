@@ -14,6 +14,18 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from contract_options import (
+    TASK_MODES,
+    VALIDATION_SCOPES,
+    inspection_roles,
+    validate_inspection_evidence,
+    validate_options,
+)
+from geometry_invariants import (
+    applicable_invariants,
+    validate_invariant_report,
+    validate_invariants,
+)
 
 SCHEMA_VERSION = 2
 LEGACY_SCHEMA_VERSION = 1
@@ -390,6 +402,9 @@ def required_view_roles(spec: dict[str, Any], pass_id: str) -> dict[str, str]:
     if pass_id == "intake":
         return {}
     roles = dict(BASE_VIEW_ROLES)
+    roles.update(inspection_roles(spec))
+    if spec.get("refinementScope"):
+        roles["integration-context"] = "render"
     routes = set(spec.get("subjectRoutes", []))
     contract = spec.get("qualityContract", {})
     for role in contract.get("requiredViews", []):
@@ -472,6 +487,9 @@ def validate_spec(state: dict[str, Any]) -> tuple[list[str], list[str]]:
 
     if spec.get("schemaVersion") != SCHEMA_VERSION:
         errors.append(f"schemaVersion must be {SCHEMA_VERSION}")
+
+    errors.extend(validate_options(spec))
+    errors.extend(validate_invariants(spec))
 
     references = require_nonempty_list(spec.get("references"), "references", errors)
     reference_ids: set[str] = set()
@@ -852,6 +870,11 @@ def command_init(args: argparse.Namespace) -> int:
         "schemaVersion": SCHEMA_VERSION,
         "projectName": args.name,
         "target": args.target,
+        "taskMode": args.task_mode,
+        "validationScope": args.validation_scope,
+        "designIntent": {},
+        "geometryInvariants": [],
+        "inspectionPlan": [],
         "complexity": args.complexity,
         "createdAt": created,
         "updatedAt": created,
@@ -1103,6 +1126,9 @@ def status_payload(state: dict[str, Any]) -> dict[str, Any]:
         ),
         "maximumCriticRounds": state.get("criticPolicy", {}).get("maximumRoundsPerPass"),
         "requiredViewRoles": required_view_roles(spec, current_id) if current_id else {},
+        "taskMode": spec.get("taskMode", "faithful-reconstruction"),
+        "validationScope": spec.get("validationScope", "visual-asset"),
+        "requiredInvariants": [row["id"] for row in applicable_invariants(spec, current_id)] if current_id and current_id != "intake" else [],
         "auditRequired": bool(definition.get("auditStage")) if definition else False,
         "auditStage": definition.get("auditStage") if definition else None,
         "specPath": state.get("specPath"),
@@ -1909,6 +1935,21 @@ def command_open_pass(args: argparse.Namespace) -> int:
     return 0
 
 
+def validate_review_invariants(args, spec, checkpoint, spec_hash, pass_id):
+    path = getattr(args, "invariant_report", None)
+    required = applicable_invariants(spec, pass_id)
+    if args.action == "continue" and required and not path:
+        raise ValueError("--invariant-report is required for declared geometry invariants")
+    if not path:
+        return None
+    record = evidence_record(path)
+    validate_invariant_report(
+        read_json(Path(record["path"])), spec, checkpoint["sha256"], spec_hash,
+        pass_id, require_pass=args.action == "continue",
+    )
+    return record
+
+
 def command_review(args: argparse.Namespace) -> int:
     state_path, state = load_state(args.state)
     if state.get("status") in {"complete", "stopped"}:
@@ -2029,6 +2070,11 @@ def command_review(args: argparse.Namespace) -> int:
         current,
         spec,
     )
+    if args.action == "continue":
+        validate_inspection_evidence(spec, read_json(Path(render_manifest_record["path"])))
+    invariant_record = validate_review_invariants(
+        args, spec, checkpoint_record, state["approvedContract"]["sha256"], current_id,
+    )
     critic_record = evidence_record(args.critic_report)
     report = read_json(Path(critic_record["path"]))
     validate_critic_report(
@@ -2075,6 +2121,7 @@ def command_review(args: argparse.Namespace) -> int:
         "comparisons": comparisons,
         "artifacts": artifacts,
         "audit": audit_record,
+        "invariantReport": invariant_record,
     }
     rounds.append(round_record)
     state["criticPolicy"]["usedContextIds"].append(critic["contextId"])
@@ -2355,6 +2402,8 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--name", required=True)
     init_parser.add_argument("--reference", action="append", required=True)
     init_parser.add_argument("--target", default="hero-render")
+    init_parser.add_argument("--task-mode", choices=sorted(TASK_MODES), default="faithful-reconstruction")
+    init_parser.add_argument("--validation-scope", choices=sorted(VALIDATION_SCOPES), default="visual-asset")
     init_parser.add_argument("--complexity", choices=sorted(DETAIL_MINIMUMS), default="complex")
     init_parser.add_argument(
         "--subject-route", action="append", choices=sorted(SUBJECT_ROUTES), default=[]
@@ -2406,6 +2455,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     review_parser.add_argument("--artifact", action="append", default=[])
     review_parser.add_argument("--audit")
+    review_parser.add_argument("--invariant-report")
     review_parser.set_defaults(handler=command_review)
 
     correct_parser = subparsers.add_parser(

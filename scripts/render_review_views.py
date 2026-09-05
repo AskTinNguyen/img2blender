@@ -124,7 +124,33 @@ def role_state(scene: bpy.types.Scene, camera: bpy.types.Object) -> dict[str, An
         )
     if role and role.startswith("ortho-") and camera.data.type != "ORTHO":
         raise ValueError(f"Camera {camera.name} role {role} must be orthographic")
+    inspection = None
+    mode = camera.get("img2blender_inspection_mode")
+    if mode:
+        if mode not in {"assembled", "isolated", "section"}:
+            raise ValueError(f"Camera {camera.name} has invalid inspection mode")
+        disclosure = str(camera.get("img2blender_inspection_disclosure", "")).strip()
+        if not disclosure:
+            raise ValueError(f"Camera {camera.name} needs an inspection disclosure")
+        neighbors = json.loads(str(camera.get("img2blender_retained_neighbors", "[]")))
+        if not isinstance(neighbors, list) or any(not isinstance(x, str) for x in neighbors):
+            raise ValueError("img2blender_retained_neighbors must be a JSON string list")
+        visible = set()
+        def collect(layer_collection):
+            if (layer_collection.exclude or layer_collection.collection.hide_render
+                    or layer_collection.indirect_only or layer_collection.holdout):
+                return
+            visible.update(o.name for o in layer_collection.collection.objects
+                           if not o.hide_render and getattr(o, "visible_camera", True)
+                           and not getattr(o, "is_holdout", False))
+            for child in layer_collection.children:
+                collect(child)
+        collect(view_layer.layer_collection)
+        if set(neighbors) - visible:
+            raise ValueError(f"Inspection neighbors are absent or hidden: {sorted(set(neighbors) - visible)}")
+        inspection = {"mode": mode, "disclosure": disclosure, "retainedNeighbors": neighbors}
     return {
+        "inspection": inspection,
         "viewLayer": view_layer_name,
         "materialOverride": material_override,
         "lightRig": str(light_rig) if light_rig else None,
@@ -278,6 +304,11 @@ def main() -> int:
         "blendFile": str(blend_path) if blend_path else None,
         "blendSha256": sha256_file(blend_path) if blend_path and blend_path.is_file() else None,
         "scene": scene.name,
+        "runtime": {
+            "configuredCyclesMode": (scene.cycles.device if hasattr(scene, "cycles")
+                                     and (resolved_engine or original["engine"]) == "CYCLES" else None),
+            "blenderBuildHash": bpy.app.build_hash.decode("utf-8", errors="replace"),
+        },
         "settings": {
             "engine": resolved_engine or original["engine"],
             "samples": (

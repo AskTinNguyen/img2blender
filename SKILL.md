@@ -39,6 +39,13 @@ Read these files completely at the indicated point:
    and after any hard-gate failure, plateau, or oscillation. Use its exact role prompts and report
    schema.
 
+## Design changes and component refinement
+
+For authorized redesign, exact repetition constraints, or refinement inside an existing scene, read
+[constrained-refinement.md](references/constrained-refinement.md). It defines reference authority,
+optional schema-v2 task/validation scopes, numeric invariant checks, component baseline records and
+assembled/isolated/section evidence. Scope labels never waive critical gates or reset review caps.
+
 ## Initialize or resume
 
 Locate the Blender executable without assuming it is on `PATH`. Do not touch an existing project
@@ -60,6 +67,8 @@ python3 <skill-root>/scripts/reconstruction_pipeline.py init \
   --reference <primary-image> \
   --reference <other-image> \
   --target hero-render \
+  --task-mode faithful-reconstruction \
+  --validation-scope visual-asset \
   --complexity complex \
   --subject-route hard-surface-prop
 ```
@@ -350,11 +359,17 @@ blender --background <scene.blend> \
   --required-role orbit-right
 ```
 
+Before rendering an expensive batch, run the optional
+[render preflight](references/blender-build-guide.md#render-preflight-and-device-fallback).
+On applicable passes, include `--invariant-report` with controller review; declared geometric
+constraints must pass against the reviewed scene and pinned spec. Inspection plans require
+mode/disclosure/neighbor provenance and independent visual judgment.
+
 ## Completion gate
 
 Do not claim completion because one render looks close. Completion requires:
 
-- exact observed-feature coverage and disclosed inference;
+- exact observed-feature coverage, declared geometric invariants passing, and disclosed inference;
 - independent critic minimum rounds and no unresolved hard gate;
 - critical features above threshold, visible, supported, attached, intersection-free, and
   consistent beyond the reference camera;

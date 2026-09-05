@@ -269,3 +269,62 @@ Material truth must survive neutral lighting before reference lighting is tuned.
   simplify coplanar cuts, and retopologize or bake when the modifier stack stops serving the target.
 - **Denoised render hides surface evidence:** raise samples, improve lighting, inspect raw or less
   denoised output, and judge at final resolution.
+
+## Render preflight and device fallback
+
+Use `scripts/render_preflight.py` from host Python before a costly batch:
+
+```bash
+python3 <skill-root>/scripts/render_preflight.py \
+  --blender /Applications/Blender.app/Contents/MacOS/Blender \
+  --scene project/doors.blend --out project/reviews/render-preflight.json \
+  --device auto --timeout 60
+```
+
+Resolve the executable for the current machine; the macOS path is an example. The preflight opens
+the source with factory preferences and automatic script execution disabled, then renders a small
+disposable scene. It detects supported devices and records the selected backend, actual device,
+Blender build, source hash and source render settings. A GPU render failure, crash, invalid report or timeout
+gets one fresh CPU attempt. During automatic discovery, unavailable backends may instead be skipped
+and CPU selected within the first process. The timeout is per attempt; total work can take approximately twice
+that duration. No .blend or preferences are saved. A passing probe establishes runtime health,
+not that a complex production scene will render successfully.
+
+GPU and CPU may produce different noise/performance. Use the passing backend explicitly for the
+production render and record effective settings separately from saved scene defaults. Do not claim
+that saved CPU settings prove a render used CPU. The production review renderer records `configuredCyclesMode` (CPU/GPU), not a measured hardware
+backend; include a production log if the effective backend/device claim matters. The preflight
+manifest identifies devices for its own tiny probe only.
+
+In the Jade Threshold door run on one M4 Max, asynchronous Metal compilation crashed; CPU was
+reliable. A subsequent Metal render succeeded with MetalRT off and these process-local overrides:
+
+```bash
+--device METAL --metalrt off \
+--cycles-env CYCLES_METAL_SPECIALIZATION_LEVEL=0 \
+--cycles-env CYCLES_METAL_ADAPTIVE_COMPILE=0
+```
+
+These are an observed local workaround, not a universal fix or default. The preflight applies no
+overrides unless explicitly supplied (and records allowlisted inherited values). Capability-guard
+optional Blender properties; report the tested build instead of assuming all later versions work.
+
+For reproducible delivery, derive project paths from the script or accept arguments; avoid embedded
+user-home paths. Reuse named camera/text datablocks or document a required fresh checkpoint. Include
+final scene(s), source, selected reference/prompt provenance, render/check manifests, checksums and
+conditional review notes. Reopen the saved files, check resource links, and test the archive.
+
+Build an archive from explicit project-relative inclusions with the reusable helper:
+
+```bash
+python3 <skill-root>/scripts/package_delivery.py \
+  --project-dir project --out project/delivery.zip \
+  --include blender/final.blend --include references --include renders --include reviews
+```
+
+Add the source script directory and any required textures explicitly. The archive contains a
+`delivery-manifest.json` with sizes and SHA-256 hashes. The helper rejects traversal and symlinks,
+omits backups/logs/cache/Git data, and checks archive CRCs, hashes and source stability before an
+atomic output replacement. Existing output survives errors. It verifies packaging only; reopening
+scene files, resource checks and visual review remain separate requirements. The root manifest
+filename is reserved; do not include an existing file with that name.

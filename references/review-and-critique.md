@@ -13,6 +13,10 @@ failure.
 6. Prompt templates
 7. Separate-thread handoff
 
+For scoped redesign, numeric constraints and concealed attachments, also use
+[constrained-refinement.md](constrained-refinement.md). The declared validation scope determines
+what must be established; it cannot waive a critical feature after seeing a failed result.
+
 ## 1. Role separation
 
 Use three bounded roles:
@@ -94,6 +98,15 @@ override; neutral/grazing cameras require `img2blender_light_rig="neutral"` or `
 Orthographic roles require actual orthographic cameras. The render manifest records the checkpoint
 hash, render hashes, camera matrices, view layer, overrides, rigs, and render settings; the state
 controller cross-checks it and the comparison manifest before accepting any critic report.
+
+### Concealed details and ineffective views
+
+An isolated part proves its modeled detail, not installed fit. Plan a retained-neighbor section
+when the assembled interface is hidden. After one unjudgeable closeup, diagnose whether the issue
+is evidence, geometry, or missing external information; do not spend repeated rounds rendering
+the same occlusion. Use `inspectionPlan` and camera provenance from the refinement guide.
+The critic must judge actual pixels; names, render-enabled neighbors and numeric metadata do not
+prove visibility or contact.
 
 ## 3. Universal visual checklist
 
@@ -298,6 +311,10 @@ Record `refine-spec` with the typed `revise-spec` transition after validation; n
 a `.blend` change. Record resumed input with hashed artifacts. Contract/reference hashes are pinned
 at intake, and every state transition is appended to a hash-chained ledger.
 
+On a conditional stop, deliver separate statements for visual acceptance, technical checks, and
+unresolved evidence. Preserve the stopped state and its reason. A high visual score does not
+change controller status, and a concealed interface is not automatically a demonstrated defect.
+
 ## 6. Prompt templates
 
 ### Builder
@@ -316,6 +333,11 @@ Return: change list, checkpoint path, render manifest, remaining known differenc
 ```
 
 ### Independent Visual Critic
+
+Include declared `taskMode`, `validationScope`, reference authorities, relevant invariant results
+and inspection intent in the packet. Separate numerical failure from an unjudgeable view. Do not
+add manufacturing or full-motion requirements to a visual-asset task late in review. Do not waive
+any pinned critical relationship or infer assembly fit from an isolated hardware image.
 
 ```text
 Role: Independent Visual Critic. You did not author this pass and must not edit the scene.
